@@ -1,72 +1,37 @@
-from flask import Flask, render_template, request
-import joblib 
-import numpy as np
-
-
-#Initializing Flask app
-#This creates an instance of the Flask app
-app = Flask(__name__)
-
-#Load the model
-model = joblib.load('iris_model.pkl')
-scaler = joblib.load('scaler.pkl')
-
-#Defining routes
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-@app.route('/predict', methods=['POST'])
-
-def predict():
-    #Get the user input
-    sepal_length = float(request.form['sepal_length'])
-    sepal_width = float(request.form['sepal_width'])
-    petal_length = float(request.form['petal_length'])
-    petal_width = float(request.form['petal_width'])
-
-    #Scale the input
-    input_data = np.array([sepal_length, sepal_width, petal_length, petal_width])
-    scaled_input = scaler.transform(input_data)
-
-    #Make prediction
-    prediction = model.predict(scaled_input)[0]
-    from website import Flask, render_template, request
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
 import joblib
-import numpy as np
 
-# Initialize Flask app
-app = Flask(__name__)
+# Load the dataset
+iris = load_iris()
+data = pd.DataFrame(data=iris.data, columns=iris.feature_names)
+data['target'] = iris.target
 
-# Load the model and scaler
-model = joblib.load('iris_model.pkl')
-scaler = joblib.load('scaler.pkl')
+# Features (X) and target (y)
+X = data.drop('target', axis=1)  # Drop the 'target' column to get features
+y = data['target']  # Target variable
 
-# Define routes
-@app.route('/')
-def home():
-    return render_template('index.html')
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-#The following route handles POST requests which are sent when user submits a form
-@app.route('/predict', methods=['POST'])
-def predict():
-    # Get user input
-    sepal_length = float(request.form['sepal_length'])
-    sepal_width = float(request.form['sepal_width'])
-    petal_length = float(request.form['petal_length'])
-    petal_width = float(request.form['petal_width'])
+# Normalize the data
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)  # Fit and transform the training data
+X_test = scaler.transform(X_test)  # Transform the test data using the same scaler
 
-    # Scale the input
-    input_data = np.array([[sepal_length, sepal_width, petal_length, petal_width]])
-    scaled_input = scaler.transform(input_data)
+# Train the model
+model = LogisticRegression(max_iter=200)
+model.fit(X_train, y_train)
 
-    # Make prediction
-    prediction = model.predict(scaled_input)[0]
-    species = ['Setosa', 'Versicolor', 'Virginica'][prediction]
+# Evaluate the model
+y_pred = model.predict(X_test)  # Predict on the test data
+accuracy = accuracy_score(y_test, y_pred)  # Compare predictions with actual values
+print(f"Accuracy: {accuracy * 100:.2f}%")
 
-    return render_template('index.html', prediction=f"The predicted species is: {species}")
-
-if __name__ == '__main__':
-    app.run(debug=True)
-
-
+# Save the model and scaler
+joblib.dump(model, 'iris_model.pkl')
+joblib.dump(scaler, 'scaler.pkl')
